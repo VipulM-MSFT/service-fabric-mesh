@@ -1,0 +1,159 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2014-04-01-preview/deploymentTemplate.json",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location of the resources (e.g. westus, eastus, westeurope)."
+      }
+    }
+  },
+  "resources": [
+    {
+      "apiVersion": "2018-09-01-preview",
+      "name": "sparkClusterNetwork",
+      "type": "Microsoft.ServiceFabricMesh/networks",
+      "location": "[parameters('location')]",
+      "dependsOn": [],
+      "properties": {
+        "kind": "Local",
+        "description": "Apache Spark Cluster Network",
+        "networkAddressPrefix": "10.0.0.0/22"
+      }
+    },
+    {
+      "apiVersion": "2018-09-01-preview",
+      "name": "sparkClusterGateway",
+      "type": "Microsoft.ServiceFabricMesh/gateways",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "Microsoft.ServiceFabricMesh/networks/sparkClusterNetwork"
+      ],
+      "properties": {
+        "description": "Service Fabric Mesh Gateway for HelloWorld sample.",
+        "sourceNetwork": {
+          "name": "Open"
+        },
+        "destinationNetwork": {
+          "name": "[resourceId('Microsoft.ServiceFabricMesh/networks', 'sparkClusterNetwork')]"
+        },
+        "tcp": [
+          {
+            "name": "ui",
+            "port": 8080,
+            "destination": {
+              "applicationName": "sparkClusterApp",
+              "serviceName": "spark-master",
+              "endpointName": "ui"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "2018-09-01-preview",
+      "name": "sparkClusterApp",
+      "type": "Microsoft.ServiceFabricMesh/applications",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "Microsoft.ServiceFabricMesh/networks/sparkClusterNetwork"
+      ],
+      "properties": {
+        "description": "Apache Spark Cluster App!",
+        "services": [
+          {
+            "type": "Microsoft.ServiceFabricMesh/services",
+            "location": "[parameters('location')]",
+            "name": "spark-master",
+            "properties": {
+              "description": "Spark Master node.",
+              "osType": "linux",
+              "codePackages": [
+                {
+                  "name": "code",
+                  "image": "bde2020/spark-master:2.4.0-hadoop2.7",
+                  "endpoints": [
+                    {
+                      "name": "ui",
+                      "port": "8080"
+                    },
+                    {
+                      "name": "cluster",
+                      "port": "7077"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "cpu": "1",
+                      "memoryInGB": "1"
+                    }
+                  }
+                }
+              ],
+              "replicaCount": "1",
+              "networkRefs": [
+                {
+                  "name": "[resourceId('Microsoft.ServiceFabricMesh/networks', 'sparkClusterNetwork')]",
+                  "endpointRefs": [
+                    {
+                      "name": "ui"
+                    },
+                    {
+                      "name": "cluster"
+                    }
+                  ]  
+                }
+              ]
+            }
+          },
+          {
+            "type": "Microsoft.ServiceFabricMesh/services",
+            "location": "[parameters('location')]",
+            "name": "spark-worker",
+            "properties": {
+              "description": "Spark Worker node.",
+              "osType": "linux",
+              "codePackages": [
+                {
+                  "name": "code",
+                  "image": "bde2020/spark-worker:2.4.0-hadoop2.7",
+                  "endpoints": [
+                    {
+                      "name": "workerui",
+                      "port": "8081"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "cpu": "1",
+                      "memoryInGB": "1"
+                    }
+                  }
+                }
+              ],
+              "replicaCount": "3",
+              "networkRefs": [
+                {
+                  "name": "[resourceId('Microsoft.ServiceFabricMesh/networks', 'sparkClusterNetwork')]",
+                  "endpointRefs": [
+                    {
+                      "name": "workerui"
+                    }
+                  ]  
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "publicIPAddress": {
+        "value" : "[reference('sparkClusterGateway').ipAddress]",
+        "type": "string"
+    }
+  }
+}
