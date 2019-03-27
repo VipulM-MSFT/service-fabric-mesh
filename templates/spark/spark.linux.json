@@ -48,6 +48,15 @@
               "serviceName": "spark-master",
               "endpointName": "ui"
             }
+          },
+          {
+            "name": "notebook",
+            "port": 8888,
+            "destination": {
+              "applicationName": "sparkClusterApp",
+              "serviceName": "jupyter-notebook",
+              "endpointName": "notebook"
+            }
           }
         ]
       }
@@ -65,7 +74,6 @@
         "services": [
           {
             "type": "Microsoft.ServiceFabricMesh/services",
-            "location": "[parameters('location')]",
             "name": "spark-master",
             "properties": {
               "description": "Spark Master node.",
@@ -73,7 +81,7 @@
               "codePackages": [
                 {
                   "name": "code",
-                  "image": "bde2020/spark-master:2.4.0-hadoop2.7",
+                  "image": "vipulmmsft/arno-spark-master:2.4.0_01",
                   "endpoints": [
                     {
                       "name": "ui",
@@ -110,7 +118,6 @@
           },
           {
             "type": "Microsoft.ServiceFabricMesh/services",
-            "location": "[parameters('location')]",
             "name": "spark-worker",
             "properties": {
               "description": "Spark Worker node.",
@@ -118,7 +125,7 @@
               "codePackages": [
                 {
                   "name": "code",
-                  "image": "bde2020/spark-worker:2.4.0-hadoop2.7",
+                  "image": "vipulmmsft/arno-spark-worker:2.4.0_01",
                   "endpoints": [
                     {
                       "name": "workerui",
@@ -133,13 +140,59 @@
                   }
                 }
               ],
-              "replicaCount": "3",
+              "replicaCount": "2",
               "networkRefs": [
                 {
                   "name": "[resourceId('Microsoft.ServiceFabricMesh/networks', 'sparkClusterNetwork')]",
                   "endpointRefs": [
                     {
                       "name": "workerui"
+                    }
+                  ]  
+                }
+              ]
+            }
+          },
+          {
+            "type": "Microsoft.ServiceFabricMesh/services",
+            "name": "jupyter-notebook",
+            "properties": {
+              "description": "Jupyter notebook server.",
+              "osType": "linux",
+              "codePackages": [
+                {
+                  "name": "code",
+                  "image": "jupyter/all-spark-notebook:f286528a06ac",
+                  "commands":[
+                    "start.sh",
+                    "jupyter",
+                    "notebook",
+                    "--NotebookApp.token=''",
+                    "--NotebookApp.allow_origin='*'",
+                    "--NotebookApp.allow_remote_access=True",
+                    "--NotebookApp.disable_check_xsrf=True"
+                  ],
+                  "endpoints": [
+                    {
+                      "name": "notebook",
+                      "port": "8888"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "cpu": "1",
+                      "memoryInGB": "1"
+                    }
+                  }
+                }
+              ],
+              "replicaCount": "1",
+              "networkRefs": [
+                {
+                  "name": "[resourceId('Microsoft.ServiceFabricMesh/networks', 'sparkClusterNetwork')]",
+                  "endpointRefs": [
+                    {
+                      "name": "notebook"
                     }
                   ]  
                 }
